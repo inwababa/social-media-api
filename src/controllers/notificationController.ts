@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import  NotificationModel  from '../models/notificationSchema';
 import  UserModel  from '../models/userSchema';
 import { AuthenticatedRequest } from '../interface/customInterface';
-import { storeDataInCache } from '../middleware/cacheMiddleware';
+import { storeDataInCache, removeCache } from '../middleware/cacheMiddleware';
 
 
 export const createMentionNotification = async (postId: string, mentionedUserIds: string[]) => {
@@ -23,6 +23,13 @@ export const createLikeNotification = async (postId: string, postOwnerId: string
     type: 'like',
     postId: postId,
   });
+
+  // Invalidate/delete the cache for the recipient
+   removeCache(postOwnerId);
+
+  // Fetch the latest notifications and update the cache
+  const notifications = await NotificationModel.find({ recipientId: postOwnerId }).sort({ createdAt: -1 });
+   storeDataInCache(postOwnerId, notifications);
 };
 
 export const createCommentNotification = async (postId: string, postOwnerId: string,) => {
@@ -45,11 +52,16 @@ export const getNotifications = async (req: AuthenticatedRequest, res: Response)
   
       const notifications = await NotificationModel.find({ recipientId: userId })
         .sort({ createdAt: -1 });
-
-        // Store notifications data in caches
+        if(notifications.length === 0) {
+          res.status(200).json({ success: false, message: 'No Available Notification', data: [] });
+        } else {
+          // Store notifications data in caches
       storeDataInCache(userId, notifications);
   
       res.status(200).json({ success: true, message: 'Notification retreived successfully', data: notifications });
+        }
+
+        
     } catch (error) {
       console.error('Error retrieving notifications:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });

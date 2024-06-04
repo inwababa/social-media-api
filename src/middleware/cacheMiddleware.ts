@@ -32,4 +32,13 @@ const storeDataInCache = (key: string, data: any) => {
   redisClient.setex(key, 3600, JSON.stringify(data)); // Cache for 1 hour (3600 seconds)
 };
 
-export { cacheMiddleware, storeDataInCache };
+// Remove given Redis cache key
+function removeCache(key: string) {
+  try {
+      redisClient.del(key);
+  } catch (err) {
+      return null;
+  }
+}
+
+export { cacheMiddleware, storeDataInCache, removeCache };
